@@ -1,10 +1,10 @@
-# Duck co-op game (Godot) â€” implementation plan
+# Duck co-op game (Godot) — implementation plan
 
 Researched: 2026-11-18. Status: plan only; nothing has been built.
 
 A 3D, pastel, simple-shapes story game for two local players, each controlling a duck. **The only
 build target is Windows** (the PC, RTX 4090). The living-room TV is reached by **Steam Link
-streaming** from the PC to `MiniBambo` (Raspberry Pi 5, HDMI â†’ LG TV), which is already that
+streaming** from the PC to `MiniBambo` (Raspberry Pi 5, HDMI → LG TV), which is already that
 device's job. **Builds, exports, linting and tests happen in the container.** The Godot editor runs
 as a self-contained portable app on Windows so it can use the RTX 4090, Forward+, and the PC's
 controllers directly. Docker Desktop, WSL2 and Steam are already installed; Godot is kept as a
@@ -20,17 +20,17 @@ project-local portable app, not installed system-wide. Streaming stays on the LA
 | Platform | **Windows only.** No native Pi build. | Decided 2026-11-18: Steam Link gives the TV the PC's graphics, so a Pi build would only cost quality and effort. |
 | TV play | **Steam Link**: the exe is added to Steam on the PC as a *non-Steam game* and streamed to MiniBambo | Nothing is uploaded to Steam or published. A local library shortcut is enough. The Pi's paired pads are forwarded to the PC. |
 | Renderer | **Forward+** (Vulkan or D3D12 on Windows) | Real-time soft shadows, SSAO, glow (string lights), volumetric fog, real-time global illumination (SDFGI), and TAA. All of these are affordable on a 4090. |
-| Co-op view | **Shared camera** with a soft tether between ducks | Suits a "wander together" story, and the visibility system (Â§6) is built around it. |
+| Co-op view | **Shared camera** with a soft tether between ducks | Suits a "wander together" story, and the visibility system (§6) is built around it. |
 | Animation | **Rigid-part ducks** (no skeleton) animated by `AnimationTree` and procedural layers | No rigging pipeline is needed, and waddle, wag, and quack are naturally procedural. Performance is no longer the reason. |
 
 ### Steam Link: why it's the better choice here
 
 | | Native Pi build (old plan) | Steam Link from the PC (new plan) |
 | --- | --- | --- |
-| Graphics | Compatibility (OpenGL) renderer, blob shadows, baked light, â‰ˆ720p internal | Forward+ with everything in the Renderer row, at full output resolution |
+| Graphics | Compatibility (OpenGL) renderer, blob shadows, baked light, ≈720p internal | Forward+ with everything in the Renderer row, at full output resolution |
 | Builds and testing | Two exports, Pi GL driver quirks, thermals, `deploy-pi.sh` | One Windows exe |
 | Controllers on the TV | Paired to the Pi | Same pads, same pairing; Steam forwards them to the PC |
-| Costs | â€” | The PC must be on with Steam running. A little added latency (fine for a cozy game). Video compression can band smooth pastel gradients and fog; Phase 0 checks this. Network quality matters, and a wired Pi is best. |
+| Costs | — | The PC must be on with Steam running. A little added latency (fine for a cozy game). Video compression can band smooth pastel gradients and fog; Phase 0 checks this. Network quality matters, and a wired Pi is best. |
 
 Not needed: a Steamworks partner account, the $100 app fee, or a store page. Those are only for
 publishing to other people. If that's ever wanted, the Steamworks SDK can be added then.
@@ -68,7 +68,7 @@ Lives in `homelab/duck-game/`, with the same layout style as [rust-template](../
 ```text
 duck-game/
   .devcontainer/devcontainer.json   # uses ./compose.yaml; VS Code + godot-tools extension (LSP on 6005)
-  Dockerfile                        # dev toolchain + editor image (see Â§3)
+  Dockerfile                        # dev toolchain + editor image (see §3)
   compose.yaml                      # headless build/test toolchain, named Godot cache volume
   .gitignore                        # .tools/, builds/, game/.godot/
   builds/                           # gitignored: export output + .playdata/ for dev runs
@@ -84,7 +84,7 @@ duck-game/
     camera/         # coop_camera.tscn
     world/
       kit/          # shared props kit, edibles
-      chapters/     # ch01/ â€¦ ch12/, one environment scene each (see Â§6)
+      chapters/     # ch01/ … ch12/, one environment scene each (see §6)
     story/          # story beats (pictogram bubbles) + chapter .tres resources
     ui/             # join screen, pause, chapter select, pictogram bubbles
     art/            # palette.png, toon.gdshader, models (.glb), materials
@@ -118,7 +118,7 @@ Scripts, all runnable inside the container except the portable editor launcher a
 | `lint.sh` | `gdformat --check` + `gdlint` on `game/` |
 | `test.sh` | `godot --headless --path game -s addons/gut/gut_cmdln.gd -gexit` |
 | `check-version.sh` | Confirms container Godot and project feature version match |
-| `export.sh` | Checks versions, exports Windows â†’ `builds/<version>/`, then refreshes `builds/current/` |
+| `export.sh` | Checks versions, exports Windows → `builds/<version>/`, then refreshes `builds/current/` |
 | `editor.ps1` | Verifies and launches the portable Godot editor from `.tools/` |
 | `playtest.ps1` | Adds/launches `builds/current/DuckGame.exe` for Steam Link play; no remote debugger is needed when editing natively |
 
@@ -146,8 +146,8 @@ A `Settings` autoload still exposes render scale and effect toggles for the paus
 ## 5. Art direction: "one step up from low-fi"
 
 - **Shapes**: low-poly but smooth-shaded, with chamfered and bevelled edges and rounded silhouettes.
-  Ducks are about 1â€“2k triangles; props are 50â€“500.
-- **Color**: a 16-swatch pastel palette in `palette.png`, with **one row per chapter** (16Ã—12, plus
+  Ducks are about 1–2k triangles; props are 50–500.
+- **Color**: a 16-swatch pastel palette in `palette.png`, with **one row per chapter** (16×12, plus
   spare rows). Every mesh UV-maps into the swatch columns, so the whole world shares **one
   material** and the colors stay consistent. Each chapter picks its row through a global
   shader uniform, so the same props get each environment's colors. Later, chapter transitions can
@@ -159,7 +159,7 @@ A `Settings` autoload still exposes render scale and effect toggles for the paus
   gradient sky shader with no HDRI.
 - **The two ducks** share the same coloring and have no names or color markers. They differ in
   shape only:
-  - The **tall duck** is about 1.25Ã— the height of the other, with a longer neck.
+  - The **tall duck** is about 1.25× the height of the other, with a longer neck.
   - The **short duck** is rounder and wears a **small necklace**. It is a simple bead or pendant
     mesh that catches the rim light so it reads from the shared camera.
   - Quack pitch follows size: the tall duck is lower and the short duck is higher.
@@ -176,20 +176,20 @@ A `Settings` autoload still exposes render scale and effect toggles for the paus
 
 ```text
 Duck (CharacterBody3D)
-â”œâ”€ Visual (Node3D)                  # rigid parts, animated
-â”‚  â”œâ”€ Body â”€ Tail, WingL, WingR
-â”‚  â”œâ”€ Head â”€ BillUpper, BillLower
-â”‚  â””â”€ FootL, FootR
-â”œâ”€ InteractArea (Area3D, in front of bill)   # edibles / story interactables
-â”œâ”€ QuackAudio (AudioStreamPlayer3D)
-â””â”€ AnimationTree                    # locomotion blend + action one-shots
+├─ Visual (Node3D)                  # rigid parts, animated
+│  ├─ Body ─ Tail, WingL, WingR
+│  ├─ Head ─ BillUpper, BillLower
+│  └─ FootL, FootR
+├─ InteractArea (Area3D, in front of bill)   # edibles / story interactables
+├─ QuackAudio (AudioStreamPlayer3D)
+└─ AnimationTree                    # locomotion blend + action one-shots
 ```
 
 | Ability | Implementation |
 | --- | --- |
 | Walk / run | `DuckMotor`: camera-relative stick input, acceleration and turn-rate curves. Run is held. Waddle is a procedural body roll and bob, scaled by speed. Feet cycle via `AnimationTree` blend space. |
 | Jump | Coyote time and jump buffer. Variable height (release early to cut). A short, comic flap of the wings at the apex for a small hang time. |
-| Quack | An **overlay** that works while moving: bill opens, head bobs, body squashes. Random pitch Â±8% around each duck's base pitch. Emits a `quacked` signal (NPCs, story beats, and the other duck can react). |
+| Quack | An **overlay** that works while moving: bill opens, head bobs, body squashes. Random pitch ±8% around each duck's base pitch. Emits a `quacked` signal (NPCs, story beats, and the other duck can react). |
 | Tail wag | Overlay: procedural sine on `Tail` rotation, with amplitude and decay. Triggered by button, automatically when idle, and on "happy" story beats. |
 | Eat | Targets the nearest `Edible` in `InteractArea`. Briefly locks movement for a dabble or head-dip animation, then consumes or shrinks the edible and emits `ate(item)`. With no target, it plays a cute "peck at nothing" animation. |
 
@@ -229,7 +229,7 @@ Default pad layout: left stick to move, **A** jump, **X** quack, **Y** eat, **B*
 
 ### Co-op camera (`coop_camera.tscn`)
 
-- Follows the midpoint of the two ducks at a fixed pitch of about 45Â°, and zooms out as they move
+- Follows the midpoint of the two ducks at a fixed pitch of about 45°, and zooms out as they move
   apart (clamped).
 - **Soft tether**: past about 12 m apart, the ducks' outward movement is damped, so neither duck
   leaves the frame.
@@ -240,7 +240,7 @@ Default pad layout: left stick to move, **A** jump, **X** quack, **Y** eat, **B*
 ### Keeping the ducks visible (core system)
 
 The ducks must be visible almost all the time, including under large roofs and overhangs. A food
-cart pod with a big covered bar area is the reference case. A high camera looking down at 45Â° sees
+cart pod with a big covered bar area is the reference case. A high camera looking down at 45° sees
 the top of the roof, not the ducks under it. Pushing the camera in under the roof doesn't work with
 two ducks who may be on either side of the roof edge. So the world gives way to the camera, rather
 than the camera dodging the world. These are layered, from most to least common:
@@ -283,7 +283,7 @@ characters; the ducks, NPCs (a frog, a heron, and so on) and places are all unna
 left for later, but the structure keeps them possible:
 
 - Each chapter is a self-contained scene in `world/chapters/chNN/` with its own lighting and
-  environment settings, its own palette row (Â§5), and an `EntrySeam` and `ExitSeam` marker. The
+  environment settings, its own palette row (§5), and an `EntrySeam` and `ExitSeam` marker. The
   exit area of one chapter and the entry area of the next are designed as matching edges, so a
   future transition can stitch them together.
 - **`ChapterLoader` autoload**: loads the next chapter in the background with
@@ -318,17 +318,17 @@ manual playtest both at the PC and **streamed to the TV through Steam Link**.
 | 1 | Duck movement | One duck from primitives. Walk, run, and jump feel good on a pad. Placeholder camera. Unit tests for the motor and state transitions. |
 | 2 | Duck expression | Quack, wag, and eat with animation and audio. `Edible` items. Signals wired. |
 | 3 | Local co-op + visibility | Join screen with tall/short pick, two ducks, per-device input, hotplug pause and resume, co-op camera with tether. **All four visibility layers and the visibility audit, proven on a test diorama in grey boxes modeled on a food cart pod (a big covered bar area, carts, picnic tables, posts, string lights).** Tests for slot assignment. The audit passes on the diorama. |
-| 4 | Art pass | Palette atlas with per-chapter rows, toon shader (with fade and silhouette), sky, fog, glow, SDFGI and SSAO tuned. Blender-refined tall and short ducks (with necklace) and a 20â€“30 piece environment kit, every piece tagged `Solid`, `Fadeable` or `Cutaway`. The look is checked through the stream as well as on the monitor. |
+| 4 | Art pass | Palette atlas with per-chapter rows, toon shader (with fade and silhouette), sky, fog, glow, SDFGI and SSAO tuned. Blender-refined tall and short ducks (with necklace) and a 20–30 piece environment kit, every piece tagged `Solid`, `Fadeable` or `Cutaway`. The look is checked through the stream as well as on the monitor. |
 | 5 | Story vertical slice | `StoryDirector`, triggers, pictogram bubbles, scripted camera, checkpoints, `ChapterLoader`. **Chapter 1** (about 10 minutes) playable start to finish and passing the visibility audit, ending in a fade into a stub chapter 2 that was loaded in the background with no hitch. |
 | 6 | Polish and packaging | Pause and settings menu (volume, rumble, render scale, effect toggles, optional duck outline). Chapter select. Credits. Versioned exports. A Steam non-Steam-game entry with library artwork. |
 | 7 | Chapter transitions | Design how one environment blends into the next (palette blend between rows, stitched seams, or a walking transition). Deferred on purpose until a few chapters exist. |
-| 8+ | Chapters 2â€“12 | One environment per chapter, each passing the visibility audit. Settings are chosen later. Add new mechanics only when the story needs them. |
+| 8+ | Chapters 2–12 | One environment per chapter, each passing the visibility audit. Settings are chosen later. Add new mechanics only when the story needs them. |
 
 ## 8. Risks
 
 | Risk | Mitigation |
 | --- | --- |
-| Ducks hidden under roofs, overhangs or behind props | The core visibility system (Â§6) with four layers, plus the headless audit that fails builds above 1% blocked. Proven on the food-cart-pod diorama in milestone 3, before any real chapter is built. |
+| Ducks hidden under roofs, overhangs or behind props | The core visibility system (§6) with four layers, plus the headless audit that fails builds above 1% blocked. Proven on the food-cart-pod diorama in milestone 3, before any real chapter is built. |
 | Cutaway roofs look odd (popping, or covered spaces stop feeling covered) | Quick dither fade instead of a hard pop, the roof kept as a shadow caster, and an outline of its edge left in place. Tuned on the diorama. |
 | Streamed pastel gradients band or blur | Debanding, faint grain in the sky and fog, avoiding fine shimmering detail, and the Steam Link quality setting. Checked in Phase 0 and again in the art pass. |
 | Steam Input merges, remaps or hides the forwarded pads | Phase 0 check. Turn Steam Input off for this one shortcut if needed. |
@@ -345,14 +345,14 @@ Answered 2026-11-18:
 
 | Question | Answer | Effect on the plan |
 | --- | --- | --- |
-| Editor location | Portable Windows editor (option D) | Forward+ on the 4090 and direct access to the wired Xbox pad; build/test toolchain stays containerized (Â§1) |
+| Editor location | Portable Windows editor (option D) | Forward+ on the 4090 and direct access to the wired Xbox pad; build/test toolchain stays containerized (§1) |
 | Controllers in the editor? | Yes | Wired Xbox pad works directly in native Windows editor play; no bridge required |
-| Pi support | Dropped in favor of Steam Link streaming and the better renderer | Windows-only Forward+ build; TV play over Steam Link (Â§1, Â§4) |
-| Controllers | Xbox. Two pads paired to the Pi over Bluetooth; one more pad wired to the PC | Pi pads are forwarded by Steam Link, so nothing is re-paired (Â§6 input) |
-| Location | `homelab/duck-game/` | Â§2 |
-| Story | Cozy, no named characters, about 12 chapters, each its own environment blending into the next; transitions later | Â§6 Story and chapters, milestones 7â€“8 |
-| Ducks | No identifiers; one taller, the shorter wears a small necklace | Â§5 and Â§6 `DuckProfile` |
-| Settings | Not yet. Keeping ducks visible is the hard part; a food cart pod with a large overhang is the reference case | Visibility system (Â§6), food-cart-pod test diorama in milestone 3 |
+| Pi support | Dropped in favor of Steam Link streaming and the better renderer | Windows-only Forward+ build; TV play over Steam Link (§1, §4) |
+| Controllers | Xbox. Two pads paired to the Pi over Bluetooth; one more pad wired to the PC | Pi pads are forwarded by Steam Link, so nothing is re-paired (§6 input) |
+| Location | `homelab/duck-game/` | §2 |
+| Story | Cozy, no named characters, about 12 chapters, each its own environment blending into the next; transitions later | §6 Story and chapters, milestones 7–8 |
+| Ducks | No identifiers; one taller, the shorter wears a small necklace | §5 and §6 `DuckProfile` |
+| Settings | Not yet. Keeping ducks visible is the hard part; a food cart pod with a large overhang is the reference case | Visibility system (§6), food-cart-pod test diorama in milestone 3 |
 | Height difference | Should matter in gameplay, but how is undecided | Deferred: no mechanics or schedule in this plan |
 
 ## 10. Open questions
