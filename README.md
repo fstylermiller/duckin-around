@@ -4,8 +4,27 @@ A cozy, wholesome 3D co-op game for two players. Each player controls a duck, an
 wander through a wordless story of about twelve chapters. Every chapter has its own environment,
 and each one blends into the next.
 
-> **Status: planning only.** Nothing has been built yet. The full design is in
-> [docs/plan.md](docs/plan.md). The next step is milestone 0 (toolchain and streaming spike).
+> **Status: milestone 0 toolchain is ready.** The pinned dev container, verified portable editor,
+> and a small Forward+ test scene are in place; container lint, tests, and Windows export pass.
+> The fade and stencil probes have been visually checked on the RTX 4090; Steam Link checks remain.
+> The full design is in [docs/plan.md](docs/plan.md).
+
+## Cozy first
+
+**Coziness is the most important thing about this game.** Every feature, asset, sound and story
+beat is checked against six pillars:
+
+1. **Nothing can go wrong.** No fail states, enemies, timers, scores or deaths.
+2. **Together, never competing.** Being close is rewarded with small shared moments: quack duets,
+   synced wags, sharing food, and napping side by side.
+3. **Soft to every sense.** Pastel colors, warm light, gentle sounds, a camera that never shakes.
+4. **Unhurried.** Walking feels good, and idle ducks preen, sit and nap.
+5. **Kindness is the story.** Each chapter is a small errand of kindness for a friendly neighbor.
+6. **Low friction.** Fast to start, autosaves constantly, drop the pad any time.
+
+A cozy audit (planned for milestone 1, see [docs/plan.md](docs/plan.md) §0) will enforce what can
+be measured: pastel palette bounds, audio levels, camera speed, and no flashes. A cozy review on
+the TV ends every milestone.
 
 ## Overview
 
@@ -47,18 +66,19 @@ A headless visibility audit fails the build if a duck is hidden more than 1% of 
 
 ## Repository layout
 
-The planned layout is below. Most of it does not exist yet.
+The current layout includes the development toolchain and a milestone 0 test scene. Gameplay systems
+are still planned.
 
 ```text
 duck-game/
   .devcontainer/        # VS Code dev container (uses compose.yaml)
   Dockerfile            # headless toolchain: Godot, Windows export templates, gdtoolkit
-  compose.yaml
+  compose.yaml          # dev container and persistent Godot template cache
   scripts/
     editor.ps1          # host: verify + launch the portable Godot editor
     playtest.ps1        # host: launch builds/current/DuckGame.exe for Steam Link play
     lint.sh test.sh export.sh check-version.sh   # container
-  game/                 # Godot project root (project.godot)
+  game/                 # Godot project root (project.godot, milestone 0 test scene)
     autoload/ duck/ camera/ world/ story/ ui/ art/ audio/ tests/
   docs/plan.md          # implementation plan
   CREDITS.md            # third-party assets and licenses (CC0 only)
@@ -84,24 +104,35 @@ wired controller. Everything else runs in a container.
    └ Steam Link ──► Raspberry Pi 5 + TV (two Bluetooth Xbox pads)
 ```
 
-1. **Edit.** Run `.\scripts\editor.ps1`.
+1. **Edit.** Run `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\editor.ps1`.
    - The first run downloads the official portable, self-contained Godot editor into `.tools/` and
      checks its SHA-512 hash. An `_sc_` marker file keeps all editor settings in that folder.
    - It then opens `game/`. Play in the editor with F5 or F6 using the PC's wired Xbox pad.
+     Use the left stick to move the yellow capsule relative to the camera. This is a temporary
+     controller test, not the finished duck movement.
+   - The two purple boxes share a material: one continuously fades with an instance shader uniform,
+     while the other stays solid. Move the duck under the roof: the covered parts should appear
+     pink through it, and exposed parts should remain yellow. These are Forward+ milestone 0
+     probes, not the final visibility system.
+   - Add `-VerifyOnly` to download and verify the editor without opening its window. The execution
+     policy override applies only to this PowerShell process; it does not change system policy.
 2. **Lint and test.** Run these in the container (VS Code: *Reopen in Container*, or
-   `docker compose run --rm dev <script>`):
-   - `scripts/lint.sh` runs `gdformat --check` and `gdlint`.
-   - `scripts/test.sh` runs the GUT unit tests and the visibility audit headless.
+   `docker compose run --rm dev bash scripts/lint.sh`):
+   - `bash scripts/lint.sh` runs `gdformat --check` and `gdlint`.
+   - `bash scripts/test.sh` runs the GUT tests and a headless scene smoke test. The visibility and
+     cozy audits are added with the gameplay systems they check.
 3. **Export.** `scripts/export.sh` checks that the container's Godot version matches the project,
    exports a Windows build to `builds/<version>/`, and refreshes `builds/current/DuckGame.exe`.
+   Run it as `bash scripts/export.sh` in the container.
 4. **Playtest on the TV.**
    - Add `builds/current/DuckGame.exe` to Steam once as a non-Steam game. Every export updates the
      same path, so the shortcut keeps working.
    - Start Steam Link on the Pi. The two Bluetooth pads paired to the Pi are forwarded to the PC.
-   - `.\scripts\playtest.ps1` launches the current build locally.
+   - `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\playtest.ps1` launches the
+     current build locally.
 
 Every milestone ends with lint, tests, and the export passing in the container, plus a playtest
-both at the PC and through Steam Link.
+both at the PC and through Steam Link, and a cozy review.
 
 ### Rules
 
@@ -118,9 +149,9 @@ both at the PC and through Steam Link.
 | --- | --- |
 | 0 | Toolchain + Steam Link streaming spike |
 | 1 | Duck movement (walk, run, jump) |
-| 2 | Duck expression (quack, wag, eat) |
-| 3 | Local co-op + visibility system (food-cart-pod grey-box diorama) |
-| 4 | Art pass (palette, toon shader, final ducks, environment kit) |
+| 2 | Duck expression (quack, wag, eat, idle life) |
+| 3 | Local co-op, together moments, visibility system (food-cart-pod grey-box diorama) |
+| 4 | Art and sound pass (palette, toon shader, warm lighting, final ducks, music, environment kit) |
 | 5 | Story vertical slice (chapter 1) |
 | 6 | Polish and packaging |
 | 7 | Chapter transitions |

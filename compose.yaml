@@ -1,0 +1,14 @@
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    platform: linux/amd64
+    init: true
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - godot-cache:/home/dev/.local/share/godot
+
+volumes:
+  godot-cache:

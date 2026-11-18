@@ -1,6 +1,7 @@
 # Duck co-op game (Godot) — implementation plan
 
-Researched: 2026-11-18. Status: plan only; nothing has been built.
+Researched: 2026-11-18. Status: milestone 0 development environment and test-scene scaffold are in
+place; interactive GPU and Steam Link validation remain.
 
 A 3D, pastel, simple-shapes story game for two local players, each controlling a duck. **The only
 build target is Windows** (the PC, RTX 4090). The living-room TV is reached by **Steam Link
@@ -11,10 +12,44 @@ controllers directly. Docker Desktop, WSL2 and Steam are already installed; Godo
 project-local portable app, not installed system-wide. Streaming stays on the LAN, so there are
 **no router, firewall, or WireGuard changes**.
 
+## 0. Cozy first
+
+**Coziness is the top design priority.** It comes before challenge, content volume, and visual
+spectacle. Every feature, asset, sound and story beat is checked against the pillars below. If
+something works against a pillar, it gets cut or softened, however good it is otherwise.
+
+### Pillars
+
+| # | Pillar | What it means in practice |
+| --- | --- | --- |
+| 1 | **Nothing can go wrong** | No fail states, enemies, timers, scores, lives, deaths, or fall damage. Mistakes cost a few seconds and look funny, never punishing. There are no "missable" moments and no collectible counters that nag. |
+| 2 | **Together, never competing** | Nothing ranks one player above the other. Being close is rewarded with small shared moments (see *Together moments*, §6). The tether means no one is left behind. Either player can put the pad down at any time. |
+| 3 | **Soft to every sense** | Rounded shapes, pastel colors, and warm light. No pure black, pure white, or harsh saturated red. Sounds are gentle with no sudden loud ones. The camera eases and never shakes. No flashing. Rumble is a light purr, never a jolt. |
+| 4 | **Unhurried** | Walking is the main way to move and should feel good on its own; running is for fun, never required. No timed puzzles. Standing still is rewarded: the ducks sit, preen, and nap, and the world keeps quietly living around them. |
+| 5 | **Kindness is the story** | Chapters are built from small kind acts, such as returning a lost egg, sharing berries, or quacking to wake a sleepy frog for its supper. Quack, eat and wag are the verbs of kindness. |
+| 6 | **Low friction** | The game opens fast and drops straight into play. It autosaves constantly, so quitting anytime loses less than a minute. Menus stay out of the way, and pause is a soft overlay over the scene, not a hard cut. |
+
+### Cozy budget (checked, not just hoped for)
+
+Like the visibility audit (§6), the parts of coziness that can be measured are checked
+automatically by `tests/cozy_audit.gd` in `test.sh`:
+
+| Check | Rule |
+| --- | --- |
+| Palette | Every swatch in `palette.png` stays within pastel bounds (HSV saturation ≤ 0.55, value ≥ 0.45). One marked ink swatch for outlines and eyes is exempt. |
+| Audio levels | No imported sound effect peaks above −6 dBFS. Music is mastered to about −20 LUFS, so nothing is louder than the music bed by surprise. |
+| Camera | Camera code may not use screen shake. Camera speed and zoom rate are capped. A test drives the ducks apart quickly and checks the caps hold. |
+| Flashes | No full-screen brightness change faster than 0.5 s (fades only). |
+
+The rest can't be measured, so it gets a **cozy review** at the end of every milestone (§7). A short
+checklist built from the pillars is walked through while playing on the TV, ideally by both players.
+Anything that felt tense, loud, rushed or lonely is logged and fixed before moving on.
+
 ## 1. Key decisions
 
 | Decision | Choice | Why |
 | --- | --- | --- |
+| Tone | **Cozy first** (§0) | The single most important quality of the game. Every other decision is checked against it. |
 | Engine | **Godot 4.7.2 stable**, pinned. Do not use 4.8 (beta as of 2026-11-09). | Current stable release, with an official Windows x86_64 export template. |
 | Language | **GDScript** (not C#/.NET) | No .NET SDK in the toolchain and smaller exports. |
 | Platform | **Windows only.** No native Pi build. | Decided 2026-11-18: Steam Link gives the TV the PC's graphics, so a Pi build would only cost quality and effort. |
@@ -98,15 +133,17 @@ duck-game/
 
 All images and downloads are pinned and verified, per homelab rule 6.
 
-- Base: `debian:trixie-slim@sha256:<digest>`. Resolve the digest at implementation time; never use
-  `:latest`.
+- Base: `debian:trixie-slim@sha256:7378260c0a098d27ac206225db5e7d92b8c7c84ea7afccc86eeb513756bbd392`
+  (Linux amd64). Never use `:latest`.
 - Godot `4.7.2-stable` `linux.x86_64` for headless tests and exports, plus the Windows
   `export_templates.tpz` from the official GitHub release. **SHA-512 values are hard-coded in the
   Dockerfile**, copied once from that release's `SHA512-SUMS.txt`. Never fetch and trust the sums
   at build time.
 - Templates are unpacked to `~/.local/share/godot/export_templates/4.7.2.stable/`.
-- `gdtoolkit` (`gdlint`/`gdformat`) at a pinned version from a hashed `requirements.txt`
-  (`pip install --require-hashes`).
+- `gdtoolkit` (`gdlint`/`gdformat`) 4.5.0 and all Python dependencies are pinned and hashed in
+  `requirements.txt` (`pip install --require-hashes`).
+- GUT 9.6.1 is vendored at commit `c80954f47bed74a0a2c471d472c0389f98e0a8f6` under
+  `game/addons/gut/`.
 - No `rcedit`/Wine. The Windows export works without it; only the exe icon and version info are lost.
 - No GUI stack, GPU passthrough, WSLg mounts, or gamepad bridge is needed in the container.
 - Runs as a non-root user. The workspace is bind-mounted; the Godot cache uses a named volume.
@@ -157,6 +194,13 @@ A `Settings` autoload still exposes render scale and effect toggles for the paus
   shadows and SSAO from Forward+. Inverted-hull outlines are optional and decided in the art pass.
 - **Atmosphere**: pastel volumetric and depth fog, glow on string lights and lanterns, and a
   gradient sky shader with no HDRI.
+- **Warmth**: the default light is a warm, low "golden hour" sun with a soft lavender sky fill.
+  Shadows are tinted toward the palette's soft purple and never go black. Lanterns, string lights
+  and windows glow warmly. Many chapters can end at dusk or evening, lit by those warm lights.
+- **Gentle life in the world**: drifting leaves, fireflies, ripples, swaying grass and bobbing
+  boats keep scenes alive while the ducks rest. Every motion is slow, so it also streams cleanly.
+- **Cute over realistic**: the ducks have big soft eyes, round bodies and tiny feet. Everything has
+  a slight squash-and-stretch bounce. Nothing has sharp points or menacing shapes.
 - **The two ducks** share the same coloring and have no names or color markers. They differ in
   shape only:
   - The **tall duck** is about 1.25× the height of the other, with a longer neck.
@@ -169,6 +213,21 @@ A `Settings` autoload still exposes render scale and effect toggles for the paus
   flattened bills), which already fits "simple shapes". Refined models come from **portable
   Blender** (zip, no install), exported as `.glb`. Commit `.glb` files rather than `.blend` imports,
   so the container never needs Blender.
+
+### Sound
+
+Sound matters at least as much as visuals for coziness.
+
+- **Music**: soft, slow instrumentals such as acoustic guitar, music box, marimba, soft piano and
+  light woodwinds, with one gentle theme per chapter. No combat-style stingers. Music gets a little
+  quieter during story beats and at rest spots rather than stopping abruptly.
+- **Ambience**: every chapter has a layered ambient bed, such as birdsong, water, wind in the leaves,
+  or distant murmuring and clinking glasses at the food cart pod.
+- **Ducks**: quacks are soft and round, not honking. Footsteps are a soft pitter-patter that
+  changes with the surface (grass, wood, puddle splish). Wing flaps are a soft flutter.
+- **UI**: soft pops and wooden clicks. Nothing beeps or buzzes.
+- **Mix**: limited dynamic range, levels enforced by the cozy audit (§0), and a gentle master
+  limiter as a safety net. All CC0 or self-made (see `CREDITS.md`).
 
 ## 6. Gameplay architecture
 
@@ -188,13 +247,34 @@ Duck (CharacterBody3D)
 | Ability | Implementation |
 | --- | --- |
 | Walk / run | `DuckMotor`: camera-relative stick input, acceleration and turn-rate curves. Run is held. Waddle is a procedural body roll and bob, scaled by speed. Feet cycle via `AnimationTree` blend space. |
-| Jump | Coyote time and jump buffer. Variable height (release early to cut). A short, comic flap of the wings at the apex for a small hang time. |
+| Jump | Coyote time and jump buffer. Variable height (release early to cut). A short, comic flap of the wings at the apex for a small hang time. Generous ledge forgiveness. Landings are a soft plop with no fall damage. |
 | Quack | An **overlay** that works while moving: bill opens, head bobs, body squashes. Random pitch ±8% around each duck's base pitch. Emits a `quacked` signal (NPCs, story beats, and the other duck can react). |
 | Tail wag | Overlay: procedural sine on `Tail` rotation, with amplitude and decay. Triggered by button, automatically when idle, and on "happy" story beats. |
 | Eat | Targets the nearest `Edible` in `InteractArea`. Briefly locks movement for a dabble or head-dip animation, then consumes or shrinks the edible and emits `ate(item)`. With no target, it plays a cute "peck at nothing" animation. |
 
-State model: a small state machine for locomotion (`Idle`, `Walk`, `Run`, `Airborne`, `Eating`).
-Quack and wag are independent overlay layers that do not change state.
+State model: a small state machine for locomotion (`Idle`, `Walk`, `Run`, `Airborne`, `Eating`,
+`Resting`). Quack and wag are independent overlay layers that do not change state.
+
+**Idle life (no button needed).** A duck left alone preens after a few seconds, looks around at
+nearby things, and wags occasionally. After about 20 seconds it settles down to sit, and after a
+while it naps with a slow breathing bob and a tiny "z" bubble. Any input wakes it with a little
+shake. Resting should be pleasant to watch, not a sign that the game is waiting on you.
+
+### Together moments
+
+Small shared moments that reward the ducks being close. They are built only from the existing
+abilities and need no new buttons. They have no score, unlock nothing, and are never required.
+
+| Moment | Trigger | Result |
+| --- | --- | --- |
+| Quack duet | Both ducks quack within about 0.5 s of each other while near each other | The two quacks harmonize into a chord, with a burst of tiny hearts |
+| Synced wag | Both wag at the same time | The wags fall into rhythm, with a little sparkle |
+| Sharing | One duck eats while the other is next to the same edible | The food splits and both ducks take a bite together |
+| Resting together | Both ducks idle side by side | They sit down and lean against each other. At a **rest spot** (a bench, a sunny patch, a blanket) they nap together while the camera slowly pulls back to take in the view |
+| Waiting | One duck is at the tether limit | The duck in front stops and looks back with a small encouraging quack |
+
+Rest spots are placed in every chapter at nice viewpoints. They are optional and double as natural
+autosave points.
 
 **Two sizes, one scene.** `duck.tscn` takes a `DuckProfile` resource (`tall.tres`, `short.tres`)
 holding the scale, a collider that matches the body, quack base pitch, and whether to show the
@@ -212,9 +292,9 @@ Godot actions match *any* device by default, which breaks co-op. The fix:
 - On join, the base actions (`move_*`, `run`, `jump`, `quack`, `eat`, `wag`, `pause`) are cloned
   into `p1_*` / `p2_*` with each `InputEvent.device` set to that pad. Ducks read only their own
   prefixed actions, so each local player stays bound to their assigned controller.
-- **Hotplug**: on `Input.joy_connection_changed`, a disconnect pauses the game and shows the
-  disconnected duck's silhouette with "press A". A reconnect re-binds automatically. Bluetooth
-  pads that go to sleep take this path too.
+- **Hotplug**: on `Input.joy_connection_changed`, the disconnected player's duck sits down and
+  naps, and the game gently pauses with a soft "press A" bubble over it. A reconnect wakes the
+  duck and re-binds automatically. Bluetooth pads that go to sleep take this path too.
 - **Controllers: Xbox pads.** Godot 4.5+ reads pads through SDL. The two Bluetooth pads stay paired
   to MiniBambo, and Steam Link forwards them to the PC when streaming, so **nothing is ever
   re-paired**. The PC's wired pad is used at the desk. In the native Windows editor, it works
@@ -232,7 +312,10 @@ Default pad layout: left stick to move, **A** jump, **X** quack, **Y** eat, **B*
 - Follows the midpoint of the two ducks at a fixed pitch of about 45°, and zooms out as they move
   apart (clamped).
 - **Soft tether**: past about 12 m apart, the ducks' outward movement is damped, so neither duck
-  leaves the frame.
+  leaves the frame. It should feel like the ducks wanting to stay together, not like hitting a
+  wall.
+- **Gentle motion**: all following, zooming and framing changes are smoothed and speed-capped
+  (checked by the cozy audit). There is no screen shake, even for big jumps or story moments.
 - Story volumes can override framing for scripted shots.
 - Split-screen is out of scope. It is noted only as a Windows-only option if the story ever needs
   the ducks apart.
@@ -275,9 +358,20 @@ fade is one material copy per fadeable group.
 
 ### Story and chapters
 
-**Tone: cozy and wholesome.** There are no fail states, enemies, timers or deaths. Falling in water
-means a short swim back to shore. Missing a jump costs a few seconds at most. There are no named
-characters; the ducks, NPCs (a frog, a heron, and so on) and places are all unnamed.
+**Tone: cozy and wholesome** (§0 pillars). There are no fail states, enemies, timers or deaths.
+Falling in water means a happy little paddle back to shore. Missing a jump costs a few seconds at
+most. There are no named characters; the ducks, NPCs (a frog, a heron, and so on) and places are all
+unnamed.
+
+- **Story shape**: each chapter is a small, low-stakes errand of kindness. The ducks help a
+  neighbor, find something lost, share a meal, or simply enjoy a place. Problems are things like
+  "the snail can't reach the clover", never threats or danger.
+- **NPCs are friendly**: every creature is either welcoming, shy-then-welcoming, or asleep. Shy
+  ones warm up to the ducks through quacks, wags and shared food.
+- **Puzzles are gentle**: always solvable by poking around with the six abilities, no time limits,
+  and a hint appears softly (a glint or an NPC's pictogram) if the ducks wander for a while.
+- **Chapter ending**: each chapter ends with a calm moment, such as watching a sunset or sharing a
+  snack at a rest spot, before moving on.
 
 **Twelve chapters, each its own environment, flowing into the next.** Transitions are deliberately
 left for later, but the structure keeps them possible:
@@ -305,29 +399,34 @@ Systems:
   text captions are optional per beat, which also keeps translation out of scope. The data is
   custom `Resource` files. A dialogue plugin is not needed for this style.
 - **Save**: checkpoint JSON in `user://save.json` (flags, chapter, checkpoint id), written when a
-  chapter or checkpoint is reached. A chapter-select screen unlocks chapters already reached.
+  chapter, checkpoint or rest spot is reached, and at least once a minute. Quitting never loses
+  more than a minute. The game boots straight to a "continue" scene with the ducks where they left
+  off. A chapter-select screen unlocks chapters already reached.
 
 ## 7. Milestones
 
-Each milestone ends with lint, tests, and the Windows export passing in the container, plus a
-manual playtest both at the PC and **streamed to the TV through Steam Link**.
+Each milestone ends with lint, tests (including the visibility and cozy audits), and the Windows
+export passing in the container, plus a manual playtest both at the PC and **streamed to the TV
+through Steam Link**, and a **cozy review** against the §0 pillars.
 
 | # | Milestone | Exit criteria |
 | --- | --- | --- |
 | 0 | **Toolchain + streaming spike** (de-risk first) | Container builds with pinned hashes. The portable Windows editor launches in Forward+ on the RTX 4090, opens the project, and the PC's wired Xbox pad controls the test scene directly. The editor launcher and container each report the pinned version, and the container's project-version check passes. A debug Windows build exports from the container and runs locally. The test scene has 100 pastel shapes, one duck capsule, fog, glow, and **one large roof on posts**. **Steam Link: `builds/current/DuckGame.exe` is added to Steam as a non-Steam game and streamed to MiniBambo. The two Pi pads show up as two separate devices in the game, there is no visible banding in the sky and fog, and latency feels fine.** Also confirm that `instance uniform` fade and stencil silhouettes work on Forward+. |
-| 1 | Duck movement | One duck from primitives. Walk, run, and jump feel good on a pad. Placeholder camera. Unit tests for the motor and state transitions. |
-| 2 | Duck expression | Quack, wag, and eat with animation and audio. `Edible` items. Signals wired. |
-| 3 | Local co-op + visibility | Join screen with tall/short pick, two ducks, per-device input, hotplug pause and resume, co-op camera with tether. **All four visibility layers and the visibility audit, proven on a test diorama in grey boxes modeled on a food cart pod (a big covered bar area, carts, picnic tables, posts, string lights).** Tests for slot assignment. The audit passes on the diorama. |
-| 4 | Art pass | Palette atlas with per-chapter rows, toon shader (with fade and silhouette), sky, fog, glow, SDFGI and SSAO tuned. Blender-refined tall and short ducks (with necklace) and a 20–30 piece environment kit, every piece tagged `Solid`, `Fadeable` or `Cutaway`. The look is checked through the stream as well as on the monitor. |
-| 5 | Story vertical slice | `StoryDirector`, triggers, pictogram bubbles, scripted camera, checkpoints, `ChapterLoader`. **Chapter 1** (about 10 minutes) playable start to finish and passing the visibility audit, ending in a fade into a stub chapter 2 that was loaded in the background with no hitch. |
+| 1 | Duck movement | One duck from primitives. Walk, run, and jump feel good on a pad; walking alone should be pleasant. Placeholder camera with gentle easing. Unit tests for the motor and state transitions. `cozy_audit.gd` skeleton (palette and camera caps). |
+| 2 | Duck expression | Quack, wag, and eat with animation and soft audio. Idle life (preen, sit, nap). `Edible` items. Signals wired. Audio level checks added to the cozy audit. |
+| 3 | Local co-op + visibility | Join screen with tall/short pick, two ducks, per-device input, gentle hotplug (napping duck), co-op camera with tether. **Together moments** (quack duet, synced wag, sharing, resting together, waiting). **All four visibility layers and the visibility audit, proven on a test diorama in grey boxes modeled on a food cart pod (a big covered bar area, carts, picnic tables, posts, string lights), with one rest spot.** Tests for slot assignment. The audit passes on the diorama. |
+| 4 | Art pass | Palette atlas with per-chapter rows (passing the pastel bounds check), toon shader (with fade and silhouette), warm golden-hour lighting with tinted shadows, sky, fog, glow, SDFGI and SSAO tuned. Ambient life (leaves, fireflies, ripples). Blender-refined tall and short ducks (with necklace) and a 20–30 piece environment kit, every piece tagged `Solid`, `Fadeable` or `Cutaway`. First music and ambience beds. The look and sound are checked through the stream as well as at the PC. |
+| 5 | Story vertical slice | `StoryDirector`, triggers, pictogram bubbles, scripted camera, checkpoints and autosave, `ChapterLoader`. **Chapter 1** (about 10 minutes): a small kindness errand with a friendly NPC, at least one rest spot and a calm ending moment, playable start to finish and passing both audits, ending in a fade into a stub chapter 2 that was loaded in the background with no hitch. |
 | 6 | Polish and packaging | Pause and settings menu (volume, rumble, render scale, effect toggles, optional duck outline). Chapter select. Credits. Versioned exports. A Steam non-Steam-game entry with library artwork. |
 | 7 | Chapter transitions | Design how one environment blends into the next (palette blend between rows, stitched seams, or a walking transition). Deferred on purpose until a few chapters exist. |
-| 8+ | Chapters 2–12 | One environment per chapter, each passing the visibility audit. Settings are chosen later. Add new mechanics only when the story needs them. |
+| 8+ | Chapters 2–12 | One environment per chapter, each a kindness errand with rest spots, passing both audits and a cozy review. Settings are chosen later. Add new mechanics only when the story needs them, and only if they fit the §0 pillars. |
 
 ## 8. Risks
 
 | Risk | Mitigation |
 | --- | --- |
+| Coziness wears away as features pile up (a timer here, a loud sound there, a fiddly jump) | The §0 pillars are a gate for every feature. The cozy audit catches what can be measured, and the cozy review on the TV catches the rest at every milestone. When in doubt, cut it or soften it. |
+| Puzzles or platforming become frustrating | Generous jump forgiveness, no fail states, soft hints after wandering, and no required precision jumps. Anything that fails twice in a playtest gets easier. |
 | Ducks hidden under roofs, overhangs or behind props | The core visibility system (§6) with four layers, plus the headless audit that fails builds above 1% blocked. Proven on the food-cart-pod diorama in milestone 3, before any real chapter is built. |
 | Cutaway roofs look odd (popping, or covered spaces stop feeling covered) | Quick dither fade instead of a hard pop, the roof kept as a shadow caster, and an outline of its edge left in place. Tuned on the diorama. |
 | Streamed pastel gradients band or blur | Debanding, faint grain in the sky and fog, avoiding fine shimmering detail, and the Steam Link quality setting. Checked in Phase 0 and again in the art pass. |
@@ -354,6 +453,7 @@ Answered 2026-11-18:
 | Ducks | No identifiers; one taller, the shorter wears a small necklace | §5 and §6 `DuckProfile` |
 | Settings | Not yet. Keeping ducks visible is the hard part; a food cart pod with a large overhang is the reference case | Visibility system (§6), food-cart-pod test diorama in milestone 3 |
 | Height difference | Should matter in gameplay, but how is undecided | Deferred: no mechanics or schedule in this plan |
+| Cozy emphasis | Coziness is the top priority, with extra emphasis | §0 pillars and cozy budget, warmth and sound direction (§5), idle life and together moments (§6), kindness-based story, cozy audit and review in every milestone (§7) |
 
 ## 10. Open questions
 

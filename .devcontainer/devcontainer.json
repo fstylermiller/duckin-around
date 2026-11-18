@@ -1,0 +1,13 @@
+{
+  "name": "Duck Game",
+  "dockerComposeFile": "../compose.yaml",
+  "service": "dev",
+  "workspaceFolder": "/workspace",
+  "shutdownAction": "stopCompose",
+  "forwardPorts": [6005],
+  "customizations": {
+    "vscode": {
+      "extensions": ["geequlim.godot-tools"]
+    }
+  }
+}
